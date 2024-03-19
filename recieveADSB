@@ -1,7 +1,7 @@
 import requests
 import json
 
-def recieveADSB(dlat,dlon,qrad): # Defines a function that takes the device's latitude (dlat), longitude (dlon), and query radius (qrad)
+def receiveADSB(dlat,dlon,qrad): # Defines a function that takes the device's latitude (dlat), longitude (dlon), and query radius (qrad)
     
     baseurl = "https://adsbexchange-com1.p.rapidapi.com/v2"
     fullurl = baseurl + "/lat/" + str(dlat) + "/lon/" + str(dlon) + "/dist/" + str(qrad) + "/"
@@ -21,4 +21,4 @@ def recieveADSB(dlat,dlon,qrad): # Defines a function that takes the device's la
 
     print(f"The current number of airborne aircraft within a {qrad} NM radius is {data['total']}.")
     
-recieveADSB(51.4688,-0.45536,25) # Runs function and 
+receiveADSB(51.4688,-0.45536,25) # Runs function and 
