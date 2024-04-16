@@ -1,17 +1,16 @@
 import RPi.GPIO as GPIO
-import motor
 from RpiMotorLib import RpiMotorLib
 # Motor driver  pins
-PIN_PITCH_STEP = 40
-PIN_PITCH_DIR = 38
-PIN_YAW_STEP = 18
-PIN_YAW_DIR = 16
+PIN_PITCH_STEP = 21
+PIN_PITCH_DIR = 20
+PIN_YAW_STEP = 24
+PIN_YAW_DIR = 23
 
 # Limit switch pins
-PIN_PITCH_UPPER = 15
-PIN_PITCH_LOWER = 13
-PIN_YAW_LEFT = 35
-PIN_YAW_RIGHT = 37
+PIN_PITCH_UPPER = 22
+PIN_PITCH_LOWER = 27
+PIN_YAW_LEFT = 19
+PIN_YAW_RIGHT = 26
 
 ALL_PINS = [PIN_PITCH_STEP,
             PIN_PITCH_DIR,
@@ -26,7 +25,7 @@ ALL_PINS = [PIN_PITCH_STEP,
 class Engine():
     def __init__(self):
 
-        GPIO.setmode(GPIO.BOARD)
+        GPIO.setmode(GPIO.BCM)
         GPIO.setwarnings(False)
 
         GPIO.setup(PIN_PITCH_STEP, GPIO.OUT, initial=GPIO.LOW)
