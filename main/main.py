@@ -1,18 +1,17 @@
 import RPi.GPIO as GPIO
 import motor
-from RpiMotorLib import RpiMotorLib, StopMotorInterrupt
-
+from RpiMotorLib import RpiMotorLib
 # Motor driver  pins
-PIN_PITCH_STEP = "GPIO21"
-PIN_PITCH_DIR = "GPIO20"
-PIN_YAW_STEP = "GPIO24"
-PIN_YAW_DIR = "GPIO23"
+PIN_PITCH_STEP = 40
+PIN_PITCH_DIR = 38
+PIN_YAW_STEP = 18
+PIN_YAW_DIR = 16
 
 # Limit switch pins
-PIN_PITCH_UPPER = "GPIO22"
-PIN_PITCH_LOWER = "GPIO27"
-PIN_YAW_LEFT = "GPIO19"
-PIN_YAW_RIGHT = "GPIO26"
+PIN_PITCH_UPPER = 15
+PIN_PITCH_LOWER = 13
+PIN_YAW_LEFT = 35
+PIN_YAW_RIGHT = 37
 
 ALL_PINS = [PIN_PITCH_STEP,
             PIN_PITCH_DIR,
@@ -26,6 +25,9 @@ ALL_PINS = [PIN_PITCH_STEP,
 
 class Engine():
     def __init__(self):
+
+        GPIO.setmode(GPIO.BOARD)
+        GPIO.setwarnings(False)
 
         GPIO.setup(PIN_PITCH_STEP, GPIO.OUT, initial=GPIO.LOW)
         GPIO.setup(PIN_PITCH_DIR, GPIO.OUT, initial=GPIO.LOW)
@@ -58,13 +60,13 @@ class Engine():
 
     def limit_switch_interrupt():
         if GPIO.input(PIN_PITCH_UPPER):
-            raise StopMotorInterrupt
+            raise RpiMotorLib.StopMotorInterrupt
         if GPIO.input(PIN_PITCH_LOWER):
-            raise StopMotorInterrupt
+            raise RpiMotorLib.StopMotorInterrupt
         if GPIO.input(PIN_YAW_LEFT):
-            raise StopMotorInterrupt
+            raise RpiMotorLib.StopMotorInterrupt
         if GPIO.input(PIN_YAW_RIGHT):
-            raise StopMotorInterrupt
+            raise RpiMotorLib.StopMotorInterrupt
 
 
 if __name__ == "__main__":
