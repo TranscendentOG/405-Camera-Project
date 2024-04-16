@@ -11,7 +11,7 @@ class StopMotorInterrupt(Exception):
     pass
 
 
-class A4988Nema(object):
+class StepperDriver(object):
     """Derived from https://github.com/gavinlyonsrepo/RpiMotorLib/blob/master/RpiMotorLib/RpiMotorLib.py"""
 
     def __init__(self, direction_pin, step_pin):
@@ -24,10 +24,6 @@ class A4988Nema(object):
 
         self.stop_motor = False
         self.steps = 0
-
-        # setup GPIO
-        GPIO.setup(self.direction_pin, GPIO.OUT)
-        GPIO.setup(self.step_pin, GPIO.OUT)
 
     def motor_stop(self):
         """Stop the motor"""

@@ -1,17 +1,11 @@
 import RPi.GPIO as GPIO
-from RpiMotorLib import RpiMotorLib
+from stepper import StepperDriver
 
 # Motor driver  pins
 PIN_PITCH_STEP = 21
 PIN_PITCH_DIR = 20
 PIN_YAW_STEP = 24
 PIN_YAW_DIR = 23
-
-STEPDELAY_FAST = 0.0005
-STEPDELAY_MED = 0.005
-STEPDELAY_SLOW = 0.01
-
-STEP_DEGREES = 1.8  # 1.8 degrees per step for full stepping
 
 # Limit switch pins
 PIN_PITCH_UPPER = 22
@@ -30,9 +24,11 @@ ALL_PINS = [
     PIN_YAW_RIGHT,
 ]
 
+STEPDELAY_FAST = 0.0005
+STEPDELAY_MED = 0.005
+STEPDELAY_SLOW = 0.01
 
-class HomingIssue(Exception):
-    pass
+STEP_DEGREES = 1.8  # 1.8 degrees per step for full stepping
 
 
 class Engine:
@@ -56,8 +52,8 @@ class Engine:
         GPIO.add_event_detect(PIN_YAW_LEFT, GPIO.RISING, callback=self.limit_switch_interrupt, bouncetime=50)
         GPIO.add_event_detect(PIN_YAW_RIGHT, GPIO.RISING, callback=self.limit_switch_interrupt, bouncetime=50)
 
-        self.pitch_motor = RpiMotorLib.A4988Nema(PIN_PITCH_DIR, PIN_PITCH_STEP, (-1, -1, -1), "DRV8825")
-        self.yaw_motor = RpiMotorLib.A4988Nema(PIN_YAW_DIR, PIN_YAW_STEP, (-1, -1, -1), "DRV8825")
+        self.pitch_motor = StepperDriver(PIN_PITCH_DIR, PIN_PITCH_STEP)
+        self.yaw_motor = StepperDriver(PIN_YAW_DIR, PIN_YAW_STEP)
 
     def home(self):
         def find_limit(motor, limit_switch, clockwise, max_steps):
@@ -67,7 +63,9 @@ class Engine:
             Limit_switch_pin is the pin that the limit switch will pull high.
             max_steps is the maximum number of steps this axis should be able to move.
 
-            Returns the step before the limit switch is triggered."""
+            Returns the step before the limit switch is triggered.
+
+            Derived in part from https://github.com/gavinlyonsrepo/RpiMotorLib/blob/master/RpiMotorLib/RpiMotorLib.py"""
 
             # Approach the limit switch, and stop when it is triggered.
             triggered = False
@@ -108,7 +106,7 @@ class Engine:
             motor=self.pitch_motor, limit_switch=PIN_PITCH_LOWER, clockwise=False, max_steps=90 / STEP_DEGREES
         )
 
-        # Find yaw right limit
+        # Find yaw left limit
         self.yaw_left_limit = find_limit(
             motor=self.yaw_motor, limit_switch=PIN_YAW_RIGHT, clockwise=True, max_steps=180 / STEP_DEGREES
         )
