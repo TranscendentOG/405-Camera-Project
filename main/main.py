@@ -30,6 +30,9 @@ STEPDELAY_SLOW = 0.01
 
 STEP_DEGREES = 1.8  # 1.8 degrees per step for full stepping
 
+MAX_STEPS_PITCH = 90 / STEP_DEGREES
+MAX_STEPS_YAW = 180 / STEP_DEGREES
+
 
 class Engine:
     def __init__(self):
@@ -47,10 +50,10 @@ class Engine:
         GPIO.setup(PIN_YAW_LEFT, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
         GPIO.setup(PIN_YAW_RIGHT, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
 
-        GPIO.add_event_detect(PIN_PITCH_UPPER, GPIO.RISING, callback=self.limit_switch_interrupt, bouncetime=50)
-        GPIO.add_event_detect(PIN_PITCH_LOWER, GPIO.RISING, callback=self.limit_switch_interrupt, bouncetime=50)
-        GPIO.add_event_detect(PIN_YAW_LEFT, GPIO.RISING, callback=self.limit_switch_interrupt, bouncetime=50)
-        GPIO.add_event_detect(PIN_YAW_RIGHT, GPIO.RISING, callback=self.limit_switch_interrupt, bouncetime=50)
+        # GPIO.add_event_detect(PIN_PITCH_UPPER, GPIO.RISING, callback=self.limit_switch_interrupt, bouncetime=50)
+        # GPIO.add_event_detect(PIN_PITCH_LOWER, GPIO.RISING, callback=self.limit_switch_interrupt, bouncetime=50)
+        # GPIO.add_event_detect(PIN_YAW_LEFT, GPIO.RISING, callback=self.limit_switch_interrupt, bouncetime=50)
+        # GPIO.add_event_detect(PIN_YAW_RIGHT, GPIO.RISING, callback=self.limit_switch_interrupt, bouncetime=50)
 
         self.pitch_motor = StepperDriver(PIN_PITCH_DIR, PIN_PITCH_STEP)
         self.yaw_motor = StepperDriver(PIN_YAW_DIR, PIN_YAW_STEP)
@@ -96,25 +99,15 @@ class Engine:
 
             return limit
 
-        # Find pitch upper limit
-        self.pitch_upper_limit = find_limit(
-            motor=self.pitch_motor, limit_switch=PIN_PITCH_UPPER, clockwise=True, max_steps=90 / STEP_DEGREES
-        )
+        # Find the limit, in steps, for each direction of each axis
+        self.pitch_upper_limit = find_limit(motor=self.pitch_motor, limit_switch=PIN_PITCH_UPPER, clockwise=True, max_steps=MAX_STEPS_PITCH)
+        self.pitch_lower_limit = find_limit(motor=self.pitch_motor, limit_switch=PIN_PITCH_LOWER, clockwise=False, max_steps=MAX_STEPS_PITCH)
+        # The pitch axis should now be at 0 degrees (horizontal)
 
-        # Find pitch lower limit
-        self.pitch_lower_limit = find_limit(
-            motor=self.pitch_motor, limit_switch=PIN_PITCH_LOWER, clockwise=False, max_steps=90 / STEP_DEGREES
-        )
+        self.yaw_left_limit = find_limit(motor=self.yaw_motor, limit_switch=PIN_YAW_RIGHT, clockwise=True, max_steps=MAX_STEPS_YAW)
+        self.yaw_right_limit = find_limit(motor=self.yaw_motor, limit_switch=PIN_YAW_RIGHT, clockwise=False, max_steps=MAX_STEPS_YAW)
 
-        # Find yaw left limit
-        self.yaw_left_limit = find_limit(
-            motor=self.yaw_motor, limit_switch=PIN_YAW_RIGHT, clockwise=True, max_steps=180 / STEP_DEGREES
-        )
-
-        # Find yaw right limit
-        self.yaw_right_limit = find_limit(
-            motor=self.yaw_motor, limit_switch=PIN_YAW_RIGHT, clockwise=False, max_steps=180 / STEP_DEGREES
-        )
+        # Move the yaw axis to 0 degrees
 
 
 if __name__ == "__main__":
