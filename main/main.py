@@ -1,10 +1,17 @@
 import RPi.GPIO as GPIO
 from RpiMotorLib import RpiMotorLib
+
 # Motor driver  pins
 PIN_PITCH_STEP = 21
 PIN_PITCH_DIR = 20
 PIN_YAW_STEP = 24
 PIN_YAW_DIR = 23
+
+STEPDELAY_FAST = 0.0005
+STEPDELAY_MED = 0.005
+STEPDELAY_SLOW = 0.01
+
+STEP_DEGREES = 1.8  # 1.8 degrees per step for full stepping
 
 # Limit switch pins
 PIN_PITCH_UPPER = 22
@@ -12,17 +19,23 @@ PIN_PITCH_LOWER = 27
 PIN_YAW_LEFT = 19
 PIN_YAW_RIGHT = 26
 
-ALL_PINS = [PIN_PITCH_STEP,
-            PIN_PITCH_DIR,
-            PIN_YAW_STEP,
-            PIN_YAW_DIR,
-            PIN_PITCH_UPPER,
-            PIN_PITCH_LOWER,
-            PIN_YAW_LEFT,
-            PIN_YAW_RIGHT,]
+ALL_PINS = [
+    PIN_PITCH_STEP,
+    PIN_PITCH_DIR,
+    PIN_YAW_STEP,
+    PIN_YAW_DIR,
+    PIN_PITCH_UPPER,
+    PIN_PITCH_LOWER,
+    PIN_YAW_LEFT,
+    PIN_YAW_RIGHT,
+]
 
 
-class Engine():
+class HomingIssue(Exception):
+    pass
+
+
+class Engine:
     def __init__(self):
 
         GPIO.setmode(GPIO.BCM)
@@ -43,36 +56,74 @@ class Engine():
         GPIO.add_event_detect(PIN_YAW_LEFT, GPIO.RISING, callback=self.limit_switch_interrupt, bouncetime=50)
         GPIO.add_event_detect(PIN_YAW_RIGHT, GPIO.RISING, callback=self.limit_switch_interrupt, bouncetime=50)
 
-        self.motor_pitch = RpiMotorLib.A4988Nema(PIN_PITCH_DIR, PIN_PITCH_STEP, (-1, -1, -1), "DRV8825")
-        self.motor_yaw = RpiMotorLib.A4988Nema(PIN_YAW_DIR, PIN_YAW_STEP, (-1, -1, -1), "DRV8825")
+        self.pitch_motor = RpiMotorLib.A4988Nema(PIN_PITCH_DIR, PIN_PITCH_STEP, (-1, -1, -1), "DRV8825")
+        self.yaw_motor = RpiMotorLib.A4988Nema(PIN_YAW_DIR, PIN_YAW_STEP, (-1, -1, -1), "DRV8825")
 
     def home(self):
+        def find_limit(motor, limit_switch, clockwise, max_steps):
+            """Returns the position of the limit, in steps, for a given motor and limit switch.
 
-        motor.motor_go(True,  # True=Clockwise, False=Counter-Clockwise
-                       "Full",  # Step type (Full,Half,1/4,1/8,1/16,1/32)
-                       200,  # number of steps
-                       .0005,  # step delay [sec]
-                       False,  # True = print verbose output
-                       .0005)  # initial delay [sec]
+            motor is the motor object.
+            Limit_switch_pin is the pin that the limit switch will pull high.
+            max_steps is the maximum number of steps this axis should be able to move.
 
-        # test code
+            Returns the step before the limit switch is triggered."""
 
-    def limit_switch_interrupt():
-        if GPIO.input(PIN_PITCH_UPPER):
-            raise RpiMotorLib.StopMotorInterrupt
-        if GPIO.input(PIN_PITCH_LOWER):
-            raise RpiMotorLib.StopMotorInterrupt
-        if GPIO.input(PIN_YAW_LEFT):
-            raise RpiMotorLib.StopMotorInterrupt
-        if GPIO.input(PIN_YAW_RIGHT):
-            raise RpiMotorLib.StopMotorInterrupt
+            # Approach the limit switch, and stop when it is triggered.
+            triggered = False
+            for i in range(max_steps):
+                triggered = GPIO.input(limit_switch)
+                if not triggered:
+                    motor.motor_step(clockwise=clockwise, stepdelay=STEPDELAY_MED)
+                else:
+                    break
+
+            # Raise an error if the previous loop never triggered the limit switch
+            assert triggered
+
+            limit = None
+
+            # Slowly move away from the limit switch until it is no longer triggered.
+            # The step when it is no longer triggered is the limit.
+            for i in range(max_steps):
+                triggered = GPIO.input(limit_switch)
+                if triggered:
+                    motor.motor_step(clockwise=not clockwise, stepdelay=STEPDELAY_SLOW)
+                else:
+                    limit = motor.steps
+                    break
+
+            # If the limit was never found, raise an error.
+            assert limit != None
+
+            return limit
+
+        # Find pitch upper limit
+        self.pitch_upper_limit = find_limit(
+            motor=self.pitch_motor, limit_switch=PIN_PITCH_UPPER, clockwise=True, max_steps=90 / STEP_DEGREES
+        )
+
+        # Find pitch lower limit
+        self.pitch_lower_limit = find_limit(
+            motor=self.pitch_motor, limit_switch=PIN_PITCH_LOWER, clockwise=False, max_steps=90 / STEP_DEGREES
+        )
+
+        # Find yaw right limit
+        self.yaw_left_limit = find_limit(
+            motor=self.yaw_motor, limit_switch=PIN_YAW_RIGHT, clockwise=True, max_steps=180 / STEP_DEGREES
+        )
+
+        # Find yaw right limit
+        self.yaw_right_limit = find_limit(
+            motor=self.yaw_motor, limit_switch=PIN_YAW_RIGHT, clockwise=False, max_steps=180 / STEP_DEGREES
+        )
 
 
 if __name__ == "__main__":
     try:
         engine = Engine()
         engine.home()
-    except KeyboardInterrupt:
+    except:
         GPIO.output(ALL_PINS, GPIO.LOW)
         GPIO.cleanup()
 
