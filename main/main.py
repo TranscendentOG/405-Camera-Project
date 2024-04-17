@@ -13,25 +13,14 @@ PIN_PITCH_LOWER = 27
 PIN_YAW_LEFT = 19
 PIN_YAW_RIGHT = 26
 
-ALL_PINS = [
-    PIN_PITCH_STEP,
-    PIN_PITCH_DIR,
-    PIN_YAW_STEP,
-    PIN_YAW_DIR,
-    PIN_PITCH_UPPER,
-    PIN_PITCH_LOWER,
-    PIN_YAW_LEFT,
-    PIN_YAW_RIGHT,
-]
-
 STEPDELAY_FAST = 0.0005
 STEPDELAY_MED = 0.005
 STEPDELAY_SLOW = 0.01
 
 STEP_DEGREES = 1.8  # 1.8 degrees per step for full stepping
 
-MAX_STEPS_PITCH = 90 / STEP_DEGREES
-MAX_STEPS_YAW = 180 / STEP_DEGREES
+MAX_STEPS_PITCH = int(1+90 / STEP_DEGREES)
+MAX_STEPS_YAW = int(1+180 / STEP_DEGREES)
 
 
 class Engine:
@@ -115,7 +104,7 @@ if __name__ == "__main__":
         engine = Engine()
         engine.home()
     except:
-        GPIO.output(ALL_PINS, GPIO.LOW)
+        GPIO.output((21, 20, 24, 23), GPIO.LOW)
         GPIO.cleanup()
 
     # armed = setup()
