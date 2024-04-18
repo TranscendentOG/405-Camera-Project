@@ -9,13 +9,12 @@ d_alt = 309 * 0.3048  # m, Height of Justin and JP's neighborhood, https://en-us
 
 
 def find_pitch(d_lat, d_lon, d_alt, a_lat, a_lon, a_alt):
+    """Returns the angle from the horizon to the aircraft, assuming a flat earth."""
     alt_delta = a_alt - d_alt  # m
     lat_delta = (d_lat - a_lat) * DEG2RAD  # degrees
     lon_delta = (d_lon - a_lon) * DEG2RAD  # degrees
 
-    L = (
-        (R * sin(lat_delta)) ** 2 + (R * sin(lon_delta)) ** 2
-    ) ** 0.5  # m, Flat earth distance from the device to the plane
+    L = ((R * sin(lat_delta)) ** 2 + (R * sin(lon_delta)) ** 2) ** 0.5  # m, Flat earth distance from the device to the plane
 
     pitch = atan(alt_delta / L) * RAD2DEG  # degrees
 

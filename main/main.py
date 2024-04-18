@@ -1,5 +1,6 @@
 import RPi.GPIO as GPIO
 from stepper import StepperDriver
+import secrets
 
 # Motor driver  pins
 PIN_PITCH_STEP = 21
@@ -46,6 +47,15 @@ class Engine:
 
         self.pitch_motor = StepperDriver(PIN_PITCH_DIR, PIN_PITCH_STEP)
         self.yaw_motor = StepperDriver(PIN_YAW_DIR, PIN_YAW_STEP)
+
+        self.device_lat = secrets.device_lat  # Degrees, latitude of the device
+        self.device_long = secrets.device_lon  # Degrees, longitude of the device
+        self.device_alt = secrets.device_alt  # meters, height of the device above sea level, https://en-us.topographic-map.com/
+
+    def ac_position():
+        # to do
+        a_lat, a_lon, a_alt = None, None, None
+        return a_lat, a_lon, a_alt
 
     def home(self):
         def find_limit(motor, limit_switch, clockwise, max_steps):
@@ -98,11 +108,22 @@ class Engine:
 
         # Move the yaw axis to 0 degrees
 
+    def thingsboard_stuff(self):
+        # Update thingsboard info and check if any buttons have been pressed
+        pass
+
+    def point(self, camera):
+        # Point the camera at the current being tracked aircraft.
+
+    def loop(self):
+        thingsboard_stff()
+
 
 if __name__ == "__main__":
     try:
         engine = Engine()
         engine.home()
+        engine.loop()
     except:
         GPIO.output((21, 20, 24, 23), GPIO.LOW)
         GPIO.cleanup()
