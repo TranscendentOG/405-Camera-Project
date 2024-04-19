@@ -125,16 +125,16 @@ class Engine:
         # Record the total travel possible on the pitch axis
         self.pitch_axis_degrees = (self.pitch_upper_limit - self.pitch_lower_limit)*STEP_DEGREES
 
-        # Find the limits, in steps, for the yaw axis
-        self.yaw_left_limit = find_limit(motor=self.yaw_motor, limit_switch=PIN_YAW_RIGHT, clockwise=True, max_steps=max_steps_yaw)
-        self.yaw_right_limit = find_limit(motor=self.yaw_motor, limit_switch=PIN_YAW_RIGHT, clockwise=False, max_steps=max_steps_yaw)
+        # # Find the limits, in steps, for the yaw axis
+        # self.yaw_left_limit = find_limit(motor=self.yaw_motor, limit_switch=PIN_YAW_RIGHT, clockwise=True, max_steps=max_steps_yaw)
+        # self.yaw_right_limit = find_limit(motor=self.yaw_motor, limit_switch=PIN_YAW_RIGHT, clockwise=False, max_steps=max_steps_yaw)
 
-        # Record the total travel possible on the yaw axis
-        self.yaw_axis_degrees = (self.yaw_left_limit - self.yaw_right_limit)*STEP_DEGREES
+        # # Record the total travel possible on the yaw axis
+        # self.yaw_axis_degrees = (self.yaw_left_limit - self.yaw_right_limit)*STEP_DEGREES
 
-        # Move the yaw axis to the center of the axis
-        steps = int(self.yaw_axis_degrees/(2*STEP_DEGREES))
-        self.yaw_motor.motor_go(clockwise=True, steps=steps)
+        # # Move the yaw axis to the center of the axis
+        # steps = int(self.yaw_axis_degrees/(2*STEP_DEGREES))
+        # self.yaw_motor.motor_go(clockwise=True, steps=steps)
 
     def thingsboard_stuff(self):
         # Update thingsboard info and check if any buttons have been pressed
@@ -164,16 +164,18 @@ class Engine:
         # TODO: the same thing again but for the yaw axis, taking into account which direction the device is pointed
 
     def loop(self):
-        self.thingsboard_stuff()
-        self.point()
-        time.sleep(0.05)
+        armed = True
+        while armed:
+            self.thingsboard_stuff()
+            self.point()
+            time.sleep(0.05)
 
 
 if __name__ == "__main__":
     try:
         engine = Engine()
         engine.home()
-        engine.loop()
+        # engine.loop()
     except AssertionError:
         print("Assertion failed.")
     finally:

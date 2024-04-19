@@ -52,11 +52,11 @@ class StepperDriver(object):
         help="Turn stepper counterclockwise"
         (2) steps, type=int, default=200, help=Number of steps sequence's
         to execute. Default is one revolution , 200 in Full mode.
-        (4) stepdelay, type=float, default=0.05, help=Time to wait
+        (3) stepdelay, type=float, default=0.05, help=Time to wait
         (in seconds) between steps.
-        (5) verbose, type=bool  type=bool default=False
+        (4) verbose, type=bool  type=bool default=False
         help="Write pin actions",
-        (6) initdelay, type=float, default=1mS, help= Intial delay after
+        (5) initdelay, type=float, default=1mS, help= Intial delay after
         GPIO pins initialized but before motor is moved.
 
         """
