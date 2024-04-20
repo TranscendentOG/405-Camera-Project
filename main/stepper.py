@@ -5,12 +5,6 @@ import RPi.GPIO as GPIO
 # The following code is derived from: https://github.com/gavinlyonsrepo/RpiMotorLib/blob/master/RpiMotorLib/RpiMotorLib.py
 
 
-class StopMotorInterrupt(Exception):
-    """Stop the motor"""
-
-    pass
-
-
 class StepperDriver(object):
     """Derived from https://github.com/gavinlyonsrepo/RpiMotorLib/blob/master/RpiMotorLib/RpiMotorLib.py"""
 

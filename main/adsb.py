@@ -1,7 +1,7 @@
 import requests
 import json
 import random
-
+import secret
 
 def receive_adsb(dlat, dlon, qrad):
     # Defines a function that takes the device's latitude (dlat), longitude (dlon), and query radius (qrad)
@@ -13,7 +13,7 @@ def receive_adsb(dlat, dlon, qrad):
     # url = "https://adsbexchange-com1.p.rapidapi.com/v2/lat/51.46888/lon/-0.45536/dist/250/"
 
     headers = {
-        "X-RapidAPI-Key": "",
+        "X-RapidAPI-Key": secret.key_adsb,
         "X-RapidAPI-Host": "adsbexchange-com1.p.rapidapi.com",
     }  # API password keys
 
@@ -25,7 +25,10 @@ def receive_adsb(dlat, dlon, qrad):
     return data
 
 
-def rand_selector(data):  # Creates a function that takes the dictionary data and randomly selects an aircraft
+def rand_selector(dlat,dlon, qrad):  # Creates a function that takes the dictionary data and randomly selects an aircraft
+    
+    data = receive_adsb(dlat, dlon, qrad)
+    
     print("Locating random aircraft...")
     b = random.randint(0, len(data["ac"]))
     randst = data["ac"][b]["dst"]
@@ -35,18 +38,33 @@ def rand_selector(data):  # Creates a function that takes the dictionary data an
     return trackhex
 
 
-def near_selector(data):
+def near_selector(dlat,dlon, qrad):
+    
+    data = receive_adsb(dlat, dlon, qrad)
+    
     min_dist = 999999
     min_ac = None
+    
     for aircraft in data["ac"]:
-        if aircraft["alt_baro"] != "ground":
-            if min_dist > aircraft["dst"]:
-                min_dist = aircraft["dst"]
+        
+        if 'alt_baro' in aircraft.keys():
+            height = aircraft["alt_baro"]
+        elif 'alt_geom' in aircraft.keys():
+            height = aircraft["alt_geom"]
+        else:
+            continue
+        
+        if height != "ground":
+            delta_lat = dlat - aircraft['lat']
+            delta_lon = dlat - aircraft['lon']
+            dist = (delta_lat**2 + delta_lon**2)**0.5
+            
+            if min_dist > dist:
+                min_dist = dist
                 min_ac = aircraft
+
     return min_ac
 
 
 if __name__ == "__main__":
-    data = receive_adsb(51.4688, -0.45536, 25)  # Runs function and
-    track_ran = rand_selector(data)
-    track_near = near_selector(data)
+    data = near_selector(51.4688, -0.45536, 25)
