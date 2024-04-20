@@ -13,7 +13,7 @@ def receive_adsb(dlat, dlon, qrad):
     # url = "https://adsbexchange-com1.p.rapidapi.com/v2/lat/51.46888/lon/-0.45536/dist/250/"
 
     headers = {
-        "X-RapidAPI-Key": "30ea111d16msh15f80fe203bf6dap1bce4bjsn7ad3da2a68d7",
+        "X-RapidAPI-Key": "",
         "X-RapidAPI-Host": "adsbexchange-com1.p.rapidapi.com",
     }  # API password keys
 
