@@ -26,10 +26,12 @@ STEP_DEGREES = 1.8  # 1.8 degrees per step for full stepping
 PITCH_OFFSET = 1.8
 YAW_OFFSET = 270
 
+
 def assert_msg(condition, message):
     """Raises a RuntimeError with message if condition is false"""
     if not condition:
         raise RuntimeError(message)
+
 
 class Engine:
     def __init__(self):
@@ -82,38 +84,44 @@ class Engine:
 
             Derived in part from https://github.com/gavinlyonsrepo/RpiMotorLib/blob/master/RpiMotorLib/RpiMotorLib.py"""
 
+            # Look for a rising edge on the limit switch
+            GPIO.add_event_detect(limit_switch, GPIO.rising)
+
             # Approach the limit switch, and stop when it is triggered.
-            triggered = False
             for i in range(max_steps):
-                triggered = GPIO.input(limit_switch)
+                triggered = GPIO.event_detected(limit_switch)
                 if not triggered:
                     motor.motor_step(clockwise=clockwise, stepdelay=STEPDELAY_FAST)
                 else:
                     break
-                
-            print('found gross position')
-            
+
+            # Remove the event detection before the function can return
+            GPIO.remove_event_detect(limit_switch)
+
             # End the function call if the limit switch was not found
             if not triggered:
                 return None
-            
-            limit = None
+
+            # Now look for a falling edge
+            GPIO.add_event_detect(limit_switch, GPIO.falling)
 
             # Slowly move away from the limit switch until it is no longer triggered.
             # The step when it is no longer triggered is the limit.
             for i in range(max_steps):
-                triggered = GPIO.input(limit_switch)
+                triggered = GPIO.event_detected(limit_switch)
                 if triggered:
                     motor.motor_step(clockwise=not clockwise, stepdelay=STEPDELAY_SLOW)
                 else:
                     limit = motor.steps
                     break
 
-            
+            # Remove the event detection before the function can return
+            GPIO.remove_event_detect(limit_switch)
+
             # limit will either be an integer representing the limit, or None, indicating that it failed
             return limit
 
-        # Approximately the max number of steps needed to reach the limit switch not reliable numbers
+        # Approximately the max number of steps needed to reach the limit switch
         max_steps_pitch = int(110 / STEP_DEGREES)
         max_steps_yaw = int(220 / STEP_DEGREES)
 
@@ -123,16 +131,15 @@ class Engine:
         #self.pitch_lower_limit = find_limit(motor=self.pitch_motor, limit_switch=PIN_PITCH_LOWER, clockwise=False, max_steps=max_steps_pitch)
         #assert_msg(self.pitch_lower_limit!=None,'Failed to find pitch lower limit')
         # The pitch axis should now be at home
-        
 
         # Record the total travel possible on the pitch axis
         #self.pitch_axis_degrees = (self.pitch_upper_limit - self.pitch_lower_limit)*STEP_DEGREES
 
         # # Find the limits, in steps, for the yaw axis
         self.yaw_left_limit = find_limit(motor=self.yaw_motor, limit_switch=PIN_YAW_RIGHT, clockwise=True, max_steps=max_steps_yaw)
-        assert_msg(self.yaw_left_limit!=None,'Failed to find yaw left limit')
+        assert_msg(self.yaw_left_limit != None, 'Failed to find yaw left limit')
         self.yaw_right_limit = find_limit(motor=self.yaw_motor, limit_switch=PIN_YAW_LEFT, clockwise=False, max_steps=max_steps_yaw)
-        assert_msg(self.yaw_right_limit!=None,'Failed to find yaw right limit')
+        assert_msg(self.yaw_right_limit != None, 'Failed to find yaw right limit')
 
         # # Record the total travel possible on the yaw axis
         # self.yaw_axis_degrees = (self.yaw_left_limit - self.yaw_right_limit)*STEP_DEGREES
@@ -140,13 +147,12 @@ class Engine:
         # # Move the yaw axis to the center of the axis
         # steps = int(self.yaw_axis_degrees/(2*STEP_DEGREES))
         # self.yaw_motor.motor_go(clockwise=True, steps=steps)
-        
+
         # Setup interrupts to stop the device if the limit switches are triggered again
         GPIO.add_event_detect(PIN_PITCH_UPPER, GPIO.RISING, callback=RuntimeError, bouncetime=50)
         GPIO.add_event_detect(PIN_PITCH_LOWER, GPIO.RISING, callback=RuntimeError, bouncetime=50)
         GPIO.add_event_detect(PIN_YAW_LEFT, GPIO.RISING, callback=RuntimeError, bouncetime=50)
         GPIO.add_event_detect(PIN_YAW_RIGHT, GPIO.RISING, callback=RuntimeError, bouncetime=50)
-
 
     def thingsboard_stuff(self):
         # Update thingsboard info and check if any buttons have been pressed
@@ -155,12 +161,12 @@ class Engine:
     def point(self, aircraft):
         # Point the camera at the current aircraft being tracked.
 
-        a_lat = aircraft['lat'] # Degrees
-        a_lon = aircraft['lon'] # Degrees
-        a_alt = aircraft['alt_baro'] # Meters
+        a_lat = aircraft['lat']  # Degrees
+        a_lon = aircraft['lon']  # Degrees
+        a_alt = aircraft['alt_baro']  # Meters
 
         desired_pitch = distance.find_pitch(self.device_lat, self.device_lon, self.device_alt, a_lat, a_lon, a_alt)
-        
+
         print(f"Pitch: Current:{self.current_pitch()} Desired:{round(desired_pitch,2)}")
 
         delta_pitch = desired_pitch - self.current_pitch()
@@ -179,7 +185,6 @@ class Engine:
         except KeyError:
             print(f"Flight:None")
         print(f"alt_baro:{aircraft['alt_baro']} lat-lon:{aircraft['lat']}-{aircraft['lon']}")
-            
 
     def loop(self):
         while True:
