@@ -17,7 +17,7 @@ PIN_PITCH_LOWER = 27
 PIN_YAW_LEFT = 19
 PIN_YAW_RIGHT = 26
 
-STEPDELAY_FAST = 0.005
+STEPDELAY_FAST = 0.05
 STEPDELAY_SLOW = 0.01
 
 STEP_DEGREES = 1.8  # 1.8 degrees per step for full stepping
@@ -90,6 +90,8 @@ class Engine:
                     motor.motor_step(clockwise=clockwise, stepdelay=STEPDELAY_FAST)
                 else:
                     break
+                
+            print('found gross position')
             
             # End the function call if the limit switch was not found
             if not triggered:
@@ -116,19 +118,21 @@ class Engine:
         max_steps_yaw = int(220 / STEP_DEGREES)
 
         # Find the limits, in steps, for the pitch axis
-        self.pitch_upper_limit = find_limit(motor=self.pitch_motor, limit_switch=PIN_PITCH_UPPER, clockwise=True, max_steps=max_steps_pitch)
-        assert_msg(self.pitch_upper_limit!=None,'Failed to find pitch upper limit')
-        self.pitch_lower_limit = find_limit(motor=self.pitch_motor, limit_switch=PIN_PITCH_LOWER, clockwise=False, max_steps=max_steps_pitch)
-        assert_msg(self.pitch_lower_limit!=None,'Failed to find pitch lower limit')
+        #self.pitch_upper_limit = find_limit(motor=self.pitch_motor, limit_switch=PIN_PITCH_UPPER, clockwise=True, max_steps=max_steps_pitch)
+        #assert_msg(self.pitch_upper_limit!=None,'Failed to find pitch upper limit')
+        #self.pitch_lower_limit = find_limit(motor=self.pitch_motor, limit_switch=PIN_PITCH_LOWER, clockwise=False, max_steps=max_steps_pitch)
+        #assert_msg(self.pitch_lower_limit!=None,'Failed to find pitch lower limit')
         # The pitch axis should now be at home
         
 
         # Record the total travel possible on the pitch axis
-        self.pitch_axis_degrees = (self.pitch_upper_limit - self.pitch_lower_limit)*STEP_DEGREES
+        #self.pitch_axis_degrees = (self.pitch_upper_limit - self.pitch_lower_limit)*STEP_DEGREES
 
         # # Find the limits, in steps, for the yaw axis
-        # self.yaw_left_limit = find_limit(motor=self.yaw_motor, limit_switch=PIN_YAW_RIGHT, clockwise=True, max_steps=max_steps_yaw)
-        # self.yaw_right_limit = find_limit(motor=self.yaw_motor, limit_switch=PIN_YAW_RIGHT, clockwise=False, max_steps=max_steps_yaw)
+        self.yaw_left_limit = find_limit(motor=self.yaw_motor, limit_switch=PIN_YAW_RIGHT, clockwise=True, max_steps=max_steps_yaw)
+        assert_msg(self.yaw_left_limit!=None,'Failed to find yaw left limit')
+        self.yaw_right_limit = find_limit(motor=self.yaw_motor, limit_switch=PIN_YAW_LEFT, clockwise=False, max_steps=max_steps_yaw)
+        assert_msg(self.yaw_right_limit!=None,'Failed to find yaw right limit')
 
         # # Record the total travel possible on the yaw axis
         # self.yaw_axis_degrees = (self.yaw_left_limit - self.yaw_right_limit)*STEP_DEGREES
