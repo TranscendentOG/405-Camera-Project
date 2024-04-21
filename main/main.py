@@ -1,3 +1,6 @@
+# Python 3.7.3
+
+import sys
 import time
 import RPi.GPIO as GPIO
 from stepper import StepperDriver
@@ -17,10 +20,13 @@ PIN_PITCH_LOWER = 27
 PIN_YAW_LEFT = 19
 PIN_YAW_RIGHT = 26
 
-STEPDELAY_FAST = 0.025
+STEPDELAY_FAST = 0.005
+STEPDELAY_MED = 0.025
 STEPDELAY_SLOW = 0.005
 
-STEP_DEGREES = 1.8  # degrees per step for full stepping
+# degrees per step
+STEP_DEGREES_PITCH = 0.9  # half stepping
+STEP_DEGREES_YAW = 1.8 # full stepping
 
 # Tuning offset for each axis. Adjust if the home angle does not correspond to the measured angle
 PITCH_OFFSET = 1.8
@@ -67,13 +73,13 @@ class Engine:
         self.device_alt = secret.device_alt  # meters, height of the device above sea level, https://en-us.topographic-map.com/
 
     def current_pitch(self):
-        return (self.pitch_motor.steps - self.pitch_lower_limit)*STEP_DEGREES + PITCH_OFFSET
+        return (self.pitch_motor.steps - self.pitch_lower_limit)*STEP_DEGREES_PITCH + PITCH_OFFSET
 
     def current_yaw(self):
-        return (self.yaw_motor.steps - self.yaw_left_limit)*STEP_DEGREES + YAW_OFFSET
+        return (self.yaw_motor.steps - self.yaw_left_limit)*STEP_DEGREES_YAW + YAW_OFFSET
 
     def home(self):
-        def find_limit(motor, limit_switch, clockwise, max_steps):
+        def find_limit(motor, limit_switch, clockwise, max_steps, fastdelay):
             """Returns the position of the limit, in steps, for a given motor and limit switch.
 
             motor is the motor object.
@@ -91,7 +97,7 @@ class Engine:
             for i in range(max_steps):
                 triggered = GPIO.event_detected(limit_switch)
                 if not triggered:
-                    motor.motor_step(clockwise=clockwise, stepdelay=STEPDELAY_FAST)
+                    motor.motor_step(clockwise=clockwise, stepdelay=fastdelay)
                 else:
                     break
 
@@ -122,41 +128,41 @@ class Engine:
             return limit
 
         # Approximately the max number of steps needed to reach the limit switch
-        max_steps_pitch = int(110 / STEP_DEGREES)
-        max_steps_yaw = int(220 / STEP_DEGREES)
+        max_steps_pitch = int(110 / STEP_DEGREES_PITCH)
+        max_steps_yaw = int(220 / STEP_DEGREES_YAW)
 
         # Find the limits, in steps, for the pitch axis
-        #self.pitch_upper_limit = find_limit(motor=self.pitch_motor, limit_switch=PIN_PITCH_UPPER, clockwise=True, max_steps=max_steps_pitch)
-        #assert_msg(self.pitch_upper_limit!=None,'Failed to find pitch upper limit')
-        #print("Homing success: Pitch Upper")
-        #self.pitch_lower_limit = find_limit(motor=self.pitch_motor, limit_switch=PIN_PITCH_LOWER, clockwise=False, max_steps=max_steps_pitch)
-        #assert_msg(self.pitch_lower_limit!=None,'Failed to find pitch lower limit')
-        #print("Homing success: Pitch Lower")
+        self.pitch_upper_limit = find_limit(motor=self.pitch_motor, limit_switch=PIN_PITCH_UPPER, clockwise=True, max_steps=max_steps_pitch, fastdelay=STEPDELAY_FAST)
+        assert_msg(self.pitch_upper_limit!=None,'Failed to find pitch upper limit')
+        print("Homing success: Pitch Upper")
+        self.pitch_lower_limit = find_limit(motor=self.pitch_motor, limit_switch=PIN_PITCH_LOWER, clockwise=False, max_steps=max_steps_pitch, fastdelay=STEPDELAY_FAST)
+        assert_msg(self.pitch_lower_limit!=None,'Failed to find pitch lower limit')
+        print("Homing success: Pitch Lower")
         # The pitch axis should now be at home
 
         # Record the total travel possible on the pitch axis
-        #self.pitch_axis_degrees = (self.pitch_upper_limit - self.pitch_lower_limit)*STEP_DEGREES
+        self.pitch_axis_degrees = (self.pitch_upper_limit - self.pitch_lower_limit)*STEP_DEGREES_PITCH
 
         # # Find the limits, in steps, for the yaw axis
-        self.yaw_left_limit = find_limit(motor=self.yaw_motor, limit_switch=PIN_YAW_LEFT, clockwise=True, max_steps=max_steps_yaw)
+        self.yaw_left_limit = find_limit(motor=self.yaw_motor, limit_switch=PIN_YAW_LEFT, clockwise=True, max_steps=max_steps_yaw, fastdelay=STEPDELAY_MED)
         assert_msg(self.yaw_left_limit != None, 'Failed to find yaw left limit')
         print("Homing success: Yaw Left")
-        self.yaw_right_limit = find_limit(motor=self.yaw_motor, limit_switch=PIN_YAW_RIGHT, clockwise=False, max_steps=max_steps_yaw)
+        self.yaw_right_limit = find_limit(motor=self.yaw_motor, limit_switch=PIN_YAW_RIGHT, clockwise=False, max_steps=max_steps_yaw, fastdelay=STEPDELAY_MED)
         assert_msg(self.yaw_right_limit != None, 'Failed to find yaw right limit')
         print("Homing success: Yaw Right")
 
         # Record the total travel possible on the yaw axis
-        self.yaw_axis_degrees = (self.yaw_left_limit - self.yaw_right_limit)*STEP_DEGREES
+        self.yaw_axis_degrees = (self.yaw_left_limit - self.yaw_right_limit)*STEP_DEGREES_YAW
 
         # Move the device to the center of the yaw axis
-        steps = int(self.yaw_axis_degrees/(2*STEP_DEGREES))
-        self.yaw_motor.motor_go(clockwise=True, steps=steps)
+        steps = int(self.yaw_axis_degrees/(2*STEP_DEGREES_YAW))
+        self.yaw_motor.motor_go(clockwise=True, steps=steps,stepdelay=STEPDELAY_MED)
 
         # Setup interrupts to stop the device if the limit switches are triggered again
-        GPIO.add_event_detect(PIN_PITCH_UPPER, GPIO.RISING, callback=RuntimeError, bouncetime=50)
-        GPIO.add_event_detect(PIN_PITCH_LOWER, GPIO.RISING, callback=RuntimeError, bouncetime=50)
-        GPIO.add_event_detect(PIN_YAW_LEFT, GPIO.RISING, callback=RuntimeError, bouncetime=50)
-        GPIO.add_event_detect(PIN_YAW_RIGHT, GPIO.RISING, callback=RuntimeError, bouncetime=50)
+        GPIO.add_event_detect(PIN_PITCH_UPPER, GPIO.RISING, callback=print, bouncetime=50)
+        GPIO.add_event_detect(PIN_PITCH_LOWER, GPIO.RISING, callback=print, bouncetime=50)
+        GPIO.add_event_detect(PIN_YAW_LEFT, GPIO.RISING, callback=print, bouncetime=50)
+        GPIO.add_event_detect(PIN_YAW_RIGHT, GPIO.RISING, callback=print, bouncetime=50)
 
     def thingsboard_stuff(self):
         # Update thingsboard info and check if any buttons have been pressed
@@ -172,13 +178,14 @@ class Engine:
         desired_pitch = distance.find_pitch(self.device_lat, self.device_lon, self.device_alt, a_lat, a_lon, a_alt)
         desired_yaw = distance.find_bearing(self.device_lat, self.device_lon, a_lat, a_lon)
 
-        print(f"Pitch: Current:{self.current_pitch()} Desired:{round(desired_pitch,2)}")
+        print(f"Pitch: Current:{self.current_pitch():.1f} Desired:{desired_pitch:.1f}")
+        print(f"Yaw: Current:{self.current_yaw():.1f} Desired:{desired_yaw:.1f}")
 
         delta_pitch = desired_pitch - self.current_pitch()
         delta_yaw = desired_yaw - self.current_yaw()
 
-        steps_pitch = abs(int(round(delta_pitch/STEP_DEGREES)))
-        steps_yaw = abs(int(round(dela_yaw/STEP_DEGREES)))
+        steps_pitch = abs(int(round(delta_pitch/STEP_DEGREES_PITCH)))
+        steps_yaw = abs(int(round(delta_yaw/STEP_DEGREES_YAW)))
 
         direction_pitch = delta_pitch > 0
         direction_yaw = delta_yaw > 0
@@ -192,7 +199,7 @@ class Engine:
             print(f"Flight:{aircraft['flight']}")
         except KeyError:
             print(f"Flight:None")
-        print(f"alt_baro:{aircraft['alt_baro']} lat-lon:{aircraft['lat']}-{aircraft['lon']}")
+        print(f"alt_baro:{aircraft['alt_baro']} lat,lon:{aircraft['lat']},{aircraft['lon']}")
 
     def loop(self):
         while True:
@@ -200,7 +207,7 @@ class Engine:
             aircraft = adsb.near_selector(secret.device_lat, secret.device_lon, 25)
             self.debugprint(aircraft)
             self.point(aircraft)
-            time.sleep(0.1)
+            time.sleep(1)
 
 
 if __name__ == "__main__":

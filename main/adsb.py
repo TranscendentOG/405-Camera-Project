@@ -54,7 +54,7 @@ def near_selector(dlat,dlon, qrad):
         else:
             continue
         
-        if height != "ground":
+        if (height != "ground") and (height > 0):
             delta_lat = dlat - aircraft['lat']
             delta_lon = dlat - aircraft['lon']
             dist = (delta_lat**2 + delta_lon**2)**0.5
