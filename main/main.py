@@ -2,7 +2,9 @@
 
 import sys
 import time
+import json
 import RPi.GPIO as GPIO
+import paho.mqtt.client as MyMqtt
 from stepper import StepperDriver
 import secret
 import distance
@@ -22,7 +24,7 @@ PIN_YAW_RIGHT = 26
 
 STEPDELAY_FAST = 0.005
 STEPDELAY_MED = 0.025
-STEPDELAY_SLOW = 0.005
+STEPDELAY_SLOW = 0.1
 
 # degrees per step
 STEP_DEGREES_PITCH = 0.9  # half stepping
@@ -30,14 +32,15 @@ STEP_DEGREES_YAW = 1.8 # full stepping
 
 # Tuning offset for each axis. Adjust if the home angle does not correspond to the measured angle
 PITCH_OFFSET = 1.8
-YAW_OFFSET = 270
+YAW_OFFSET =  352.4
 
+TelemetryTopic = "v1/devices/me/telemetry"
+RPCrequestTopic = 'v1/devices/me/rpc/request/+'
 
 def assert_msg(condition, message):
     """Raises a RuntimeError with message if condition is false"""
     if not condition:
         raise RuntimeError(message)
-
 
 class Engine:
     def __init__(self):
@@ -71,6 +74,8 @@ class Engine:
         self.device_lat = secret.device_lat  # Degrees, latitude of the device
         self.device_lon = secret.device_lon  # Degrees, longitude of the device
         self.device_alt = secret.device_alt  # meters, height of the device above sea level, https://en-us.topographic-map.com/
+
+        self.client = MyMqtt.Client()
 
     def current_pitch(self):
         return (self.pitch_motor.steps - self.pitch_lower_limit)*STEP_DEGREES_PITCH + PITCH_OFFSET
@@ -141,7 +146,7 @@ class Engine:
         # The pitch axis should now be at home
 
         # Record the total travel possible on the pitch axis
-        self.pitch_axis_degrees = (self.pitch_upper_limit - self.pitch_lower_limit)*STEP_DEGREES_PITCH
+        self.pitch_span = (self.pitch_upper_limit - self.pitch_lower_limit)*STEP_DEGREES_PITCH
 
         # # Find the limits, in steps, for the yaw axis
         self.yaw_left_limit = find_limit(motor=self.yaw_motor, limit_switch=PIN_YAW_LEFT, clockwise=True, max_steps=max_steps_yaw, fastdelay=STEPDELAY_MED)
@@ -152,17 +157,12 @@ class Engine:
         print("Homing success: Yaw Right")
 
         # Record the total travel possible on the yaw axis
-        self.yaw_axis_degrees = (self.yaw_left_limit - self.yaw_right_limit)*STEP_DEGREES_YAW
+        self.yaw_span = (self.yaw_left_limit - self.yaw_right_limit)*STEP_DEGREES_YAW
 
         # Move the device to the center of the yaw axis
-        steps = int(self.yaw_axis_degrees/(2*STEP_DEGREES_YAW))
+        steps = int(self.yaw_span/(2*STEP_DEGREES_YAW))
         self.yaw_motor.motor_go(clockwise=True, steps=steps,stepdelay=STEPDELAY_MED)
 
-        # Setup interrupts to stop the device if the limit switches are triggered again
-        GPIO.add_event_detect(PIN_PITCH_UPPER, GPIO.RISING, callback=print, bouncetime=50)
-        GPIO.add_event_detect(PIN_PITCH_LOWER, GPIO.RISING, callback=print, bouncetime=50)
-        GPIO.add_event_detect(PIN_YAW_LEFT, GPIO.RISING, callback=print, bouncetime=50)
-        GPIO.add_event_detect(PIN_YAW_RIGHT, GPIO.RISING, callback=print, bouncetime=50)
 
     def thingsboard_stuff(self):
         # Update thingsboard info and check if any buttons have been pressed
@@ -178,8 +178,8 @@ class Engine:
         desired_pitch = distance.find_pitch(self.device_lat, self.device_lon, self.device_alt, a_lat, a_lon, a_alt)
         desired_yaw = distance.find_bearing(self.device_lat, self.device_lon, a_lat, a_lon)
 
-        print(f"Pitch: Current:{self.current_pitch():.1f} Desired:{desired_pitch:.1f}")
-        print(f"Yaw: Current:{self.current_yaw():.1f} Desired:{desired_yaw:.1f}")
+        #print(f"Pitch: Current:{self.current_pitch():.1f} Desired:{desired_pitch:.1f}")
+        #print(f"Yaw: Current:{self.current_yaw():.1f} Desired:{desired_yaw:.1f}")
 
         delta_pitch = desired_pitch - self.current_pitch()
         delta_yaw = desired_yaw - self.current_yaw()
@@ -194,20 +194,66 @@ class Engine:
         self.yaw_motor.motor_go(clockwise=direction_yaw, steps=steps_yaw, stepdelay=STEPDELAY_FAST)
         
         
-    def debugprint(self, aircraft):
-        try:
-            print(f"Flight:{aircraft['flight']}")
-        except KeyError:
-            print(f"Flight:None")
-        print(f"alt_baro:{aircraft['alt_baro']} lat,lon:{aircraft['lat']},{aircraft['lon']}")
-
+    # MQTT on_connect callback function
+    def on_connect(self, client, userdata, flags, rc):
+        print("rc code:", rc)
+        client.subscribe(RPCrequestTopic)
+        
+    # MQTT on_message callback function
+    def on_message(self, client, userdata, msg):        
+        if msg.topic.startswith('v1/devices/me/rpc/request/'):
+            data = json.loads(msg.payload)
+            if data['method'] == 'setValue':
+                params = data['params'] # Turn the pump on/off
+            self.setValue(params)
+            
+    def setValue(self, params):
+        pass
+    
+    def IOTConnect(self):
+        # Initialize variables and MQTT details
+        iot_hub = "demo.thingsboard.io"
+        port = 1883
+        username = secret.key_thingsboard
+        password = ""                
+        self.client.on_connect = self.on_connect
+        self.client.on_message = self.on_message
+        self.client.username_pw_set(username, password)
+        self.client.connect(iot_hub, port)
+        self.client.loop_start()
+        print("Connection successful")
+    
+    def send_data(self, packet, aircraft):
+        
+        if 'alt_geom' in aircraft.keys():
+            alt = aircraft['alt_geom']
+        else:
+            alt = aircraft['alt_baro']
+        
+        data_out = {"Packet": packet, # Current packet number
+                    "HexID": aircraft['hex'], # Tracked aircraft hex ID
+                    "Latitude": aircraft['lat'], # Tracked aircraft latitude
+                    "Longitude": aircraft['lon'], # Tracked aircraft longitude
+                    "Altitude": alt, # Tracked aircraft altitude (barometric?)
+                    "Pitch": self.current_pitch(), # Device pitch
+                    "Yaw": self.current_yaw() # Device yaw
+            }
+        print("data_out=",data_out)
+        JSON_data_out = json.dumps(data_out) # Convert to JSON format
+        self.client.publish(TelemetryTopic, JSON_data_out, 0) # Publish data to MQTT server
+            
     def loop(self):
+        i = 0
         while True:
             self.thingsboard_stuff()
-            aircraft = adsb.near_selector(secret.device_lat, secret.device_lon, 25)
-            self.debugprint(aircraft)
+            bearing_min = YAW_OFFSET - self.yaw_span
+            bearing_max = YAW_OFFSET
+            aircraft = adsb.near_selector_bearing(secret.device_lat, secret.device_lon, 50, bearing_min, bearing_max)
             self.point(aircraft)
+            self.send_data(i, aircraft)
+            i += 1
             time.sleep(1)
+            print("=========")
 
 
 if __name__ == "__main__":
@@ -216,6 +262,7 @@ if __name__ == "__main__":
         engine.home()
         engine.loop()
     finally:
-        # TODO cleanup thingsboard connection
         GPIO.output((21, 20, 24, 23), GPIO.LOW)
         GPIO.cleanup()
+        engine.client.disconnect()
+        engine.client.loop_stop()

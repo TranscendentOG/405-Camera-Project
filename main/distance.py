@@ -38,5 +38,12 @@ def find_bearing(d_lat, d_lon, a_lat, a_lon):
     x = sin(lambda_delta) * cos(lambda_2)
     y = cos(psi_1) * sin(psi_2) - sin(psi_1) * cos(psi_2) * cos(lambda_delta)
     bearing = atan2(x, y) * RAD2DEG  # Degrees, Bearing, clockwise from the north
+    
+    if d_lon > a_lon:
+        bearing = 360 - bearing
 
     return bearing
+
+if __name__ == "__main__":
+    bearing = find_bearing(d_lat=45.63, d_lon=-122.61, a_lat=45.492942, a_lon=-122.95262)
+    print(bearing)

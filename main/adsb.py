@@ -2,6 +2,7 @@ import requests
 import json
 import random
 import secret
+import distance
 
 def receive_adsb(dlat, dlon, qrad):
     # Defines a function that takes the device's latitude (dlat), longitude (dlon), and query radius (qrad)
@@ -21,21 +22,15 @@ def receive_adsb(dlat, dlon, qrad):
 
     data = json.loads(response.text)  # Converts it to a dictionary
 
-    print(f"The current number of airborne aircraft within a {qrad} NM radius is {data['total']}.")
+    #print(f"The current number of airborne aircraft within a {qrad} NM radius is {data['total']}.")
     return data
 
 
 def rand_selector(dlat,dlon, qrad):  # Creates a function that takes the dictionary data and randomly selects an aircraft
     
     data = receive_adsb(dlat, dlon, qrad)
-    
-    print("Locating random aircraft...")
-    b = random.randint(0, len(data["ac"]))
-    randst = data["ac"][b]["dst"]
-    trackhex = data["ac"][b]["hex"]
-    print(f"The randomly selected aircraft is {randst} NM from the device's location.")
-    print(f"The randomly selected aircraft's hex identifier is {trackhex}.")
-    return trackhex
+    b = random.choice(data['ac'])
+    return b
 
 
 def near_selector(dlat,dlon, qrad):
@@ -65,6 +60,40 @@ def near_selector(dlat,dlon, qrad):
 
     return min_ac
 
+def near_selector_bearing(dlat, dlon, qrad, bearing_min, bearing_max):
+    
+    data = receive_adsb(dlat, dlon, qrad)
+    
+    min_dist = 999999
+    min_ac = None
+
+    
+    for aircraft in data["ac"]:
+        
+        bearing = distance.find_bearing(dlat, dlon, aircraft['lat'], aircraft['lon'])
+        
+        if bearing_min < bearing < bearing_max:
+    
+            if 'alt_baro' in aircraft.keys():
+                height = aircraft["alt_baro"]
+            elif 'alt_geom' in aircraft.keys():
+                height = aircraft["alt_geom"]
+            else:
+                continue
+            
+            if (height != "ground") and (height > 0):
+                delta_lat = dlat - aircraft['lat']
+                delta_lon = dlat - aircraft['lon']
+                dist = (delta_lat**2 + delta_lon**2)**0.5
+                
+                if min_dist > dist:
+                    min_dist = dist
+                    min_ac = aircraft
+                    
+    return min_ac
+
 
 if __name__ == "__main__":
-    data = near_selector(51.4688, -0.45536, 25)
+    data = near_selector_bearing(45.630, -122.610, 25, 199, 352)
+    #data = rand_selector(45.8, -122.8, 25)
+    print(data)
