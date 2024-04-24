@@ -35,9 +35,9 @@ class StepperDriver(object):
         time.sleep(stepdelay)
 
         if clockwise:
-            self.steps += 1
-        else:
             self.steps -= 1
+        else:
+            self.steps += 1
 
     def motor_go(self, clockwise=False, steps=200, stepdelay=0.005, verbose=False, initdelay=0.05):
         """motor_go,  moves stepper motor based on 6 inputs
@@ -71,9 +71,9 @@ class StepperDriver(object):
                     time.sleep(stepdelay)
 
                     if clockwise:
-                        self.steps += 1
-                    else:
                         self.steps -= 1
+                    else:
+                        self.steps += 1
 
                     if verbose:
                         print("Steps count {}".format(i + 1), end="\r", flush=True)

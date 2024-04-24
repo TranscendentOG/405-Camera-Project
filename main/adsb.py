@@ -66,13 +66,20 @@ def near_selector_bearing(dlat, dlon, qrad, bearing_min, bearing_max):
     
     min_dist = 999999
     min_ac = None
+    
+    # There are no aircraft within the radius.
+    if 'ac' not in data.keys():
+        return None
 
     
     for aircraft in data["ac"]:
         
-        bearing = distance.find_bearing(dlat, dlon, aircraft['lat'], aircraft['lon'])
+        aircraft['bearing'] = distance.find_bearing(dlat, dlon, aircraft['lat'], aircraft['lon'])
         
-        if bearing_min < bearing < bearing_max:
+        if aircraft['bearing'] <0:
+            aircraft['bearing'] = 360 + aircraft['bearing']
+        
+        if bearing_min < aircraft['bearing'] < bearing_max:
     
             if 'alt_baro' in aircraft.keys():
                 height = aircraft["alt_baro"]
@@ -81,9 +88,9 @@ def near_selector_bearing(dlat, dlon, qrad, bearing_min, bearing_max):
             else:
                 continue
             
-            if (height != "ground") and (height > 3000):
+            if (height != "ground") and (height > 700):
                 delta_lat = dlat - aircraft['lat']
-                delta_lon = dlat - aircraft['lon']
+                delta_lon = dlon - aircraft['lon']
                 dist = (delta_lat**2 + delta_lon**2)**0.5
                 
                 if min_dist > dist:
@@ -94,6 +101,5 @@ def near_selector_bearing(dlat, dlon, qrad, bearing_min, bearing_max):
 
 
 if __name__ == "__main__":
-    data = near_selector_bearing(45.630, -122.610, 25, 199, 352)
-    #data = rand_selector(45.8, -122.8, 25)
+    data = near_selector_bearing(45.630, -122.610, 25, 188, 355.4)
     print(data)

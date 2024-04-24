@@ -31,8 +31,8 @@ STEP_DEGREES_PITCH = 0.9  # half stepping
 STEP_DEGREES_YAW = 1.8 # full stepping
 
 # Tuning offset for each axis. Adjust if the home angle does not correspond to the measured angle
-PITCH_OFFSET = 1.8
-YAW_OFFSET =  352.4
+PITCH_OFFSET = -4
+YAW_OFFSET =  188
 
 TelemetryTopic = "v1/devices/me/telemetry"
 RPCrequestTopic = 'v1/devices/me/rpc/request/+'
@@ -78,10 +78,10 @@ class Engine:
         self.client = MyMqtt.Client()
 
     def current_pitch(self):
-        return (self.pitch_motor.steps - self.pitch_lower_limit)*STEP_DEGREES_PITCH + PITCH_OFFSET
+        return (self.pitch_lower_limit - self.pitch_motor.steps )*STEP_DEGREES_PITCH + PITCH_OFFSET
 
     def current_yaw(self):
-        return (self.yaw_motor.steps - self.yaw_left_limit)*STEP_DEGREES_YAW + YAW_OFFSET
+        return(self.yaw_left_limit - self.yaw_motor.steps)*STEP_DEGREES_YAW + YAW_OFFSET
 
     def home(self):
         def find_limit(motor, limit_switch, clockwise, max_steps, fastdelay):
@@ -146,7 +146,7 @@ class Engine:
         # The pitch axis should now be at home
 
         # Record the total travel possible on the pitch axis
-        self.pitch_span = (self.pitch_upper_limit - self.pitch_lower_limit)*STEP_DEGREES_PITCH
+        self.pitch_span = (self.pitch_lower_limit - self.pitch_upper_limit)*STEP_DEGREES_PITCH
 
         # # Find the limits, in steps, for the yaw axis
         self.yaw_left_limit = find_limit(motor=self.yaw_motor, limit_switch=PIN_YAW_LEFT, clockwise=True, max_steps=max_steps_yaw, fastdelay=STEPDELAY_MED)
@@ -157,7 +157,7 @@ class Engine:
         print("Homing success: Yaw Right")
 
         # Record the total travel possible on the yaw axis
-        self.yaw_span = (self.yaw_left_limit - self.yaw_right_limit)*STEP_DEGREES_YAW
+        self.yaw_span = (self.yaw_right_limit - self.yaw_left_limit)*STEP_DEGREES_YAW
 
         # Move the device to the center of the yaw axis
         steps = int(self.yaw_span/(2*STEP_DEGREES_YAW))
@@ -177,12 +177,12 @@ class Engine:
 
         desired_pitch = distance.find_pitch(self.device_lat, self.device_lon, self.device_alt, a_lat, a_lon, a_alt)
         desired_yaw = distance.find_bearing(self.device_lat, self.device_lon, a_lat, a_lon)
-
+        
+        delta_pitch =  -self.current_pitch()+ desired_pitch
+        delta_yaw = -self.current_yaw() + desired_yaw
+        
         #print(f"Pitch: Current:{self.current_pitch():.1f} Desired:{desired_pitch:.1f}")
-        #print(f"Yaw: Current:{self.current_yaw():.1f} Desired:{desired_yaw:.1f}")
-
-        delta_pitch = desired_pitch - self.current_pitch()
-        delta_yaw = desired_yaw - self.current_yaw()
+        #print(f"Yaw: Current:{self.current_yaw():.1f} Desired:{desired_yaw:.1f} Delta:{delta_yaw:.1f}")
 
         steps_pitch = abs(int(round(delta_pitch/STEP_DEGREES_PITCH)))
         steps_yaw = abs(int(round(delta_yaw/STEP_DEGREES_YAW)))
@@ -230,10 +230,9 @@ class Engine:
                     "HexID": aircraft['hex'], # Tracked aircraft hex ID
                     "Latitude": aircraft['lat'], # Tracked aircraft latitude
                     "Longitude": aircraft['lon'], # Tracked aircraft longitude
-                    "Registration": aircraft['r'], # Registration number of the aircraft
-                    "Type": aircraft['t'], # Model number of the aircraft
                     "Pitch": self.current_pitch(), # Device pitch
-                    "Yaw": self.current_yaw() # Device yaw
+                    "Yaw": self.current_yaw(), # Device yaw
+                    "Bearing": aircraft['bearing'], # Angle between the aircraft and the device, starting from north and going clockwise
             }
         
         # Not all aircraft use geometric altitude
@@ -244,8 +243,16 @@ class Engine:
         
         # Not all aircraft give a speed        
         if 'tas' in aircraft.keys():
-            data_out['speed'] = aircraft['tas']
+            data_out['Speed'] = aircraft['tas']
         
+        # Not all aircraft have registration(???)
+        if 'r' in aircraft.keys():
+            data_out['Registration'] = aircraft['r']
+        
+        # Perhaps not all aircraft will have their type given
+        if 't' in aircraft.keys():
+            data_out['Type'] = aircraft['t']
+
         print("data_out=",data_out)
         JSON_data_out = json.dumps(data_out) # Convert to JSON format
         self.client.publish(TelemetryTopic, JSON_data_out, 0) # Publish data to MQTT server
@@ -254,11 +261,14 @@ class Engine:
         i = 0
         while True:
             self.thingsboard_stuff()
-            bearing_min = YAW_OFFSET - self.yaw_span
-            bearing_max = YAW_OFFSET
+            bearing_min = YAW_OFFSET
+            bearing_max = YAW_OFFSET + self.yaw_span
             aircraft = adsb.near_selector_bearing(secret.device_lat, secret.device_lon, 50, bearing_min, bearing_max)
-            self.point(aircraft)
-            self.send_data(i, aircraft)
+            if aircraft == None:
+                print("No aircraft found.")
+            else:
+                self.point(aircraft)
+                self.send_data(i, aircraft)
             i += 1
             time.sleep(1)
             print("=========")

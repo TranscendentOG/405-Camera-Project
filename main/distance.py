@@ -25,25 +25,23 @@ def find_pitch(d_lat, d_lon, d_alt, a_lat, a_lon, a_alt):
 
 def find_bearing(d_lat, d_lon, a_lat, a_lon):
     """Find the bearing between the device (d_lat, d_lon) and aircraft (a_lat, a_lon). Returns the difference in angle, in degrees, clockwise starting at the north."""
-    # https://math.stackexchange.com/questions/2573800/derivation-of-formula-for-heading-to-another-point-lat-long
 
-    psi_1 = d_lat * DEG2RAD  # rad
-    lambda_1 = d_lon * DEG2RAD  # rad
+    psi1 = d_lat * DEG2RAD  # rad
+    lambda1 = d_lon * DEG2RAD  # rad
 
-    psi_2 = a_lat * DEG2RAD  # rad
-    lambda_2 = a_lon * DEG2RAD  # rad
-
-    lambda_delta = lambda_2 - lambda_1
-
-    x = sin(lambda_delta) * cos(lambda_2)
-    y = cos(psi_1) * sin(psi_2) - sin(psi_1) * cos(psi_2) * cos(lambda_delta)
-    bearing = atan2(x, y) * RAD2DEG  # Degrees, Bearing, clockwise from the north
+    psi2 = a_lat * DEG2RAD  # rad
+    lambda2 = a_lon * DEG2RAD  # rad
     
-    if d_lon > a_lon:
-        bearing = 360 - bearing
+    y = sin(lambda2-lambda1)*cos(psi2)
+    x = cos(psi1)*sin(psi2) - sin(psi1)*cos(psi2)*cos(lambda2-lambda1)
+    
+    theta = atan2(y,x)
+    
+    bearing = (theta*180/pi + 360) % 360
 
     return bearing
 
 if __name__ == "__main__":
-    bearing = find_bearing(d_lat=45.63, d_lon=-122.61, a_lat=45.492942, a_lon=-122.95262)
+        
+    bearing = find_bearing(d_lat=45.630, d_lon=-122.610, a_lat=45.722076, a_lon=-122.565017)
     print(bearing)
