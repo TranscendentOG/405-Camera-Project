@@ -28,7 +28,7 @@ class StepperDriver(object):
         self.stop_motor = False
         GPIO.output(self.direction_pin, clockwise)
 
-        time.sleep(stepdelay)
+        time.sleep(0.005)
         GPIO.output(self.step_pin, True)
         time.sleep(stepdelay)
         GPIO.output(self.step_pin, False)

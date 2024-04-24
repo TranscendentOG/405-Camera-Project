@@ -24,7 +24,7 @@ PIN_YAW_RIGHT = 26
 
 STEPDELAY_FAST = 0.005
 STEPDELAY_MED = 0.025
-STEPDELAY_SLOW = 0.1
+STEPDELAY_SLOW = 0.5
 
 # degrees per step
 STEP_DEGREES_PITCH = 0.9  # half stepping
@@ -38,7 +38,7 @@ TelemetryTopic = "v1/devices/me/telemetry"
 RPCrequestTopic = 'v1/devices/me/rpc/request/+'
 
 def assert_msg(condition, message):
-    """Raises a RuntimeError with message if condition is false"""
+    """Raises a RuntimeError with message if condition is false."""
     if not condition:
         raise RuntimeError(message)
 
@@ -96,7 +96,7 @@ class Engine:
             Derived in part from https://github.com/gavinlyonsrepo/RpiMotorLib/blob/master/RpiMotorLib/RpiMotorLib.py"""
 
             # Look for a rising edge on the limit switch
-            GPIO.add_event_detect(limit_switch, GPIO.RISING)
+            GPIO.add_event_detect(limit_switch, GPIO.RISING,bouncetime=50)
 
             # Approach the limit switch, and stop when it is triggered.
             for i in range(max_steps):
@@ -114,7 +114,7 @@ class Engine:
                 return None
 
             # Now look for a falling edge
-            GPIO.add_event_detect(limit_switch, GPIO.FALLING)
+            GPIO.add_event_detect(limit_switch, GPIO.FALLING,bouncetime=50)
 
             # Slowly move away from the limit switch until it is no longer triggered.
             # The step when it is no longer triggered is the limit.
@@ -225,19 +225,27 @@ class Engine:
     
     def send_data(self, packet, aircraft):
         
-        if 'alt_geom' in aircraft.keys():
-            alt = aircraft['alt_geom']
-        else:
-            alt = aircraft['alt_baro']
-        
+        # Packet to be transmitted to the Thingsboard dashboard
         data_out = {"Packet": packet, # Current packet number
                     "HexID": aircraft['hex'], # Tracked aircraft hex ID
                     "Latitude": aircraft['lat'], # Tracked aircraft latitude
                     "Longitude": aircraft['lon'], # Tracked aircraft longitude
-                    "Altitude": alt, # Tracked aircraft altitude (barometric?)
+                    "Registration": aircraft['r'], # Registration number of the aircraft
+                    "Type": aircraft['t'], # Model number of the aircraft
                     "Pitch": self.current_pitch(), # Device pitch
                     "Yaw": self.current_yaw() # Device yaw
             }
+        
+        # Not all aircraft use geometric altitude
+        if 'alt_geom' in aircraft.keys():
+            data_out['alt'] = aircraft['alt_geom']
+        else:
+            data_out['alt'] = aircraft['alt_baro']
+        
+        # Not all aircraft give a speed        
+        if 'tas' in aircraft.keys():
+            data_out['speed'] = aircraft['tas']
+        
         print("data_out=",data_out)
         JSON_data_out = json.dumps(data_out) # Convert to JSON format
         self.client.publish(TelemetryTopic, JSON_data_out, 0) # Publish data to MQTT server

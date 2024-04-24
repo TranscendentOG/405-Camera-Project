@@ -81,7 +81,7 @@ def near_selector_bearing(dlat, dlon, qrad, bearing_min, bearing_max):
             else:
                 continue
             
-            if (height != "ground") and (height > 0):
+            if (height != "ground") and (height > 3000):
                 delta_lat = dlat - aircraft['lat']
                 delta_lon = dlat - aircraft['lon']
                 dist = (delta_lat**2 + delta_lon**2)**0.5
