@@ -5,9 +5,6 @@ DEG2RAD = 1 / RAD2DEG
 
 R = (6378137.0 + 6356752.314245) / 2  # m, An average radius of earth, average of semi- major and minor axes of WGS84
 
-d_alt = 309 * 0.3048  # m, Height of Justin and JP's neighborhood, https://en-us.topographic-map.com/
-
-
 def find_pitch(d_lat, d_lon, d_alt, a_lat, a_lon, a_alt):
     """Returns the angle from the horizon to the aircraft, assuming a flat earth."""
     

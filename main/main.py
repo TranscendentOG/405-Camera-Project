@@ -1,6 +1,5 @@
 # Python 3.7.3
 
-import sys
 import time
 import json
 import RPi.GPIO as GPIO
@@ -24,13 +23,13 @@ PIN_YAW_RIGHT = 26
 
 STEPDELAY_FAST = 0.005
 STEPDELAY_MED = 0.025
-STEPDELAY_SLOW = 0.5
+STEPDELAY_SLOW = 0.100
 
 # degrees per step
 STEP_DEGREES_PITCH = 0.9  # half stepping
 STEP_DEGREES_YAW = 1.8 # full stepping
 
-# Tuning offset for each axis. Adjust if the home angle does not correspond to the measured angle
+# Tuning offset for each axis. Adjust if the home angle does not correspond to the measured angle.
 PITCH_OFFSET = -4
 YAW_OFFSET =  188
 
@@ -161,12 +160,9 @@ class Engine:
 
         # Move the device to the center of the yaw axis
         steps = int(self.yaw_span/(2*STEP_DEGREES_YAW))
-        self.yaw_motor.motor_go(clockwise=True, steps=steps,stepdelay=STEPDELAY_MED)
+        self.yaw_motor.motor_go(clockwise=True, steps=steps,stepdelay=STEPDELAY_FAST)
 
 
-    def thingsboard_stuff(self):
-        # Update thingsboard info and check if any buttons have been pressed
-        pass
 
     def point(self, aircraft):
         # Point the camera at the current aircraft being tracked.
@@ -178,8 +174,8 @@ class Engine:
         desired_pitch = distance.find_pitch(self.device_lat, self.device_lon, self.device_alt, a_lat, a_lon, a_alt)
         desired_yaw = distance.find_bearing(self.device_lat, self.device_lon, a_lat, a_lon)
         
-        delta_pitch =  -self.current_pitch()+ desired_pitch
-        delta_yaw = -self.current_yaw() + desired_yaw
+        delta_pitch =  desired_pitch - self.current_pitch()
+        delta_yaw = desired_yaw - self.current_yaw() 
         
         #print(f"Pitch: Current:{self.current_pitch():.1f} Desired:{desired_pitch:.1f}")
         #print(f"Yaw: Current:{self.current_yaw():.1f} Desired:{desired_yaw:.1f} Delta:{delta_yaw:.1f}")
@@ -201,16 +197,9 @@ class Engine:
         
     # MQTT on_message callback function
     def on_message(self, client, userdata, msg):        
-        if msg.topic.startswith('v1/devices/me/rpc/request/'):
-            data = json.loads(msg.payload)
-            if data['method'] == 'setValue':
-                params = data['params'] # Turn the pump on/off
-            self.setValue(params)
-            
-    def setValue(self, params):
         pass
     
-    def IOTConnect(self):
+    def connect(self):
         # Initialize variables and MQTT details
         iot_hub = "demo.thingsboard.io"
         port = 1883
@@ -277,6 +266,7 @@ class Engine:
 if __name__ == "__main__":
     try:
         engine = Engine()
+        engine.connect()
         engine.home()
         engine.loop()
     finally:
